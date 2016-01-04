@@ -69,10 +69,10 @@
 
 工作环境Ubuntu 14.04 LTSGcc, make, gdb, QEMU均使用Ubuntu直接安装的版本1sudo apt-get install qemu-system-x86
 *Ubuntu和QEMU虚拟机都是32位或者都是64位，简化了配置">
-<meta property="og:image" content="http://yoursite.com/">
-<meta property="og:image" content="http://yoursite.com/">
-<meta property="og:image" content="http://yoursite.com/">
-<meta property="og:updated_time" content="2015-12-31T08:36:28.747Z">
+<meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/gdb%2Bsi.png">
+<meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/qemu.png">
+<meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/kernel_init.png">
+<meta property="og:updated_time" content="2016-01-04T04:19:55.956Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="在QEMU中使用GDB调试Linux Kernel代码">
 <meta name="twitter:description" content="在QEMU中能够很方便的用GDB对内核代码进行调试，网上已有相关的介绍。现在将自己搭建这一调试环境的过程记录下来，对深入跟踪内核代码很有帮助。
@@ -270,14 +270,14 @@
 
       
         <p>在QEMU中能够很方便的用GDB对内核代码进行调试，网上已有相关的介绍。现在将自己搭建这一调试环境的过程记录下来，对深入跟踪内核代码很有帮助。</p>
-<p><img src="/" alt=""></p>
+<p><img src="http://7xpr8z.com1.z0.glb.clouddn.com/gdb%2Bsi.png" alt=""></p>
 <h3 id="u5DE5_u4F5C_u73AF_u5883"><a href="#u5DE5_u4F5C_u73AF_u5883" class="headerlink" title="工作环境"></a>工作环境</h3><p>Ubuntu 14.04 LTS<br>Gcc, make, gdb, QEMU均使用Ubuntu直接安装的版本<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install qemu-system-x86</span><br></pre></td></tr></table></figure></p>
 <p>*Ubuntu和QEMU虚拟机都是32位或者都是64位，简化了配置交叉工具链的工作</p>
 <h3 id="u4E0B_u8F7D_u5185_u6838_u4EE3_u7801_u5E76_u7F16_u8BD1"><a href="#u4E0B_u8F7D_u5185_u6838_u4EE3_u7801_u5E76_u7F16_u8BD1" class="headerlink" title="下载内核代码并编译"></a>下载内核代码并编译</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> linux-<span class="number">3.18</span>.<span class="number">19</span></span><br><span class="line">make defconfig</span><br><span class="line">make menuconfig</span><br><span class="line">修改配置kernel hacking --&gt; compile the kernel with debug info</span><br><span class="line">对默认配置进行裁剪（可选）</span><br><span class="line">make bzImage</span><br></pre></td></tr></table></figure>
 <h3 id="u901A_u8FC7gdb_u8C03_u8BD5_u7F16_u8BD1_u540E_u7684kernel_u7684_u542F_u52A8_u8FC7_u7A0B"><a href="#u901A_u8FC7gdb_u8C03_u8BD5_u7F16_u8BD1_u540E_u7684kernel_u7684_u542F_u52A8_u8FC7_u7A0B" class="headerlink" title="通过gdb调试编译后的kernel的启动过程"></a>通过gdb调试编译后的kernel的启动过程</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> linux-<span class="number">3.18</span>.<span class="number">19</span></span><br><span class="line">qemu-system-i386 -S -kernel arch/x86/boot/bzImage -m <span class="number">512</span> -monitor stdio</span><br><span class="line">(qemu) gdbserver tcp::<span class="number">1234</span></span><br></pre></td></tr></table></figure>
-<p><img src="/" alt=""></p>
+<p><img src="http://7xpr8z.com1.z0.glb.clouddn.com/qemu.png" alt=""></p>
 <p>然后新的终端里启动gdb<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> linux-<span class="number">3.18</span>.<span class="number">19</span></span><br><span class="line">gdb vmlinux</span><br><span class="line">(gdb) target remote localhost:<span class="number">1234</span></span><br></pre></td></tr></table></figure></p>
-<p><img src="/" alt=""></p>
+<p><img src="http://7xpr8z.com1.z0.glb.clouddn.com/kernel_init.png" alt=""></p>
 <p>因为没有rootfs，所以QEMU虚拟机里的kernel运行到mount rootfs时就会panic，为了能调试kernel正常运行的过程，下一节我们将要制作一个简单的rootfs。</p>
 
       
@@ -454,7 +454,7 @@
         <div class="copyright" >
   
   &copy; 
-  <span itemprop="copyrightYear">2015</span>
+  <span itemprop="copyrightYear">2016</span>
   <span class="with-love">
     <i class="icon-next-heart fa fa-heart"></i>
   </span>
