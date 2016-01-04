@@ -63,7 +63,8 @@
 <meta property="og:url" content="http://yoursite.com/2016/01/04/qemu-debug-linux-kernel2/index.html">
 <meta property="og:site_name" content="Goldhorn's Notes">
 <meta property="og:description" content="现在我们要通过busybox制作一个简单的rootfs1234567dd if=/dev/zero of=rootfs.img bs=1M count=10mkfs.ext3 rootfs.imgmkdir rootfssudo mount -t ext3 -o loop rootfs.img rootfscd rootfssudo mkdir dev proc sys etc home lib">
-<meta property="og:updated_time" content="2016-01-04T04:34:18.715Z">
+<meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/qemu_rootfs.png">
+<meta property="og:updated_time" content="2016-01-04T04:37:00.197Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="在QEMU中使用GDB调试Linux Kernel代码（一）">
 <meta name="twitter:description" content="现在我们要通过busybox制作一个简单的rootfs1234567dd if=/dev/zero of=rootfs.img bs=1M count=10mkfs.ext3 rootfs.imgmkdir rootfssudo mount -t ext3 -o loop rootfs.img rootfscd rootfssudo mkdir dev proc sys etc home lib">
@@ -262,7 +263,8 @@
 <p>现在还需要做一份 etc 的基本配置。 Busybox源代码里examples目录下有可以借用的配置：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo cp <span class="operator">-a</span> examples/bootfloppy/etc/* ~/qemu-x86/rootfs/etc/</span><br><span class="line">sudo umount rootfs</span><br></pre></td></tr></table></figure></p>
 <p>现在将生成的rootfs.img拷贝到内核目录下，启动QEMU虚拟机并通过GDB连接<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-i386 -S -kernel arch/x86/boot/bzImage -hda rootfs.img -append <span class="string">"root=/dev/sda rw"</span> -m <span class="number">512</span> -monitor stdio</span><br><span class="line">(qemu) gdbserver tcp::<span class="number">1234</span></span><br></pre></td></tr></table></figure></p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> linux-<span class="number">3.18</span>.<span class="number">19</span></span><br><span class="line">gdb vmlinux</span><br><span class="line">(gdb) target remote localhost:<span class="number">1234</span></span><br></pre></td></tr></table></figure>
-<p>至此QEMU虚拟机已能运行起来并访问根文件系统。下一节我们将要配置虚拟机的网络部分。</p>
+<p>再次通过gdb启动之后QEMU虚拟机里的kernel可以正常启动，这时可以进行其他代码的调试和跟踪（比如内存管理和文件系统）。<br><img src="http://7xpr8z.com1.z0.glb.clouddn.com/qemu_rootfs.png" alt=""></p>
+<p>为了能调试内核网络相关的代码，下一节我们将要配置虚拟机的网络部分。</p>
 
       
     </div>
