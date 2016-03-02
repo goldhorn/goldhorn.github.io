@@ -59,36 +59,30 @@
 
 <meta name="description" content="通过tun/tap实现qemu虚拟机和host之间的网络通信
 
-guest和host的内核选项 Device Drivers  —&amp;gt;
-[*] Network device support  ---&amp;gt;
-          &amp;lt;*&amp;gt;   Universal TUN/TAP device driver support
+guest和host的内核选项
+123Device Drivers  ---&amp;gt;         [*] Network device support  ---&amp;gt;                   &amp;lt;*&amp;gt;   Universal TUN/TAP device driver support
 
-修改Ubuntu的/etc/qemu-ifup脚本
-12345">
+修改Ubuntu的/">
 <meta property="og:type" content="article">
 <meta property="og:title" content="在QEMU中使用GDB调试Linux Kernel代码（三）">
 <meta property="og:url" content="http://yoursite.com/2016/03/01/qemu-debug-linux-kernel3/index.html">
 <meta property="og:site_name" content="Goldhorn's Notes">
 <meta property="og:description" content="通过tun/tap实现qemu虚拟机和host之间的网络通信
 
-guest和host的内核选项 Device Drivers  —&amp;gt;
-[*] Network device support  ---&amp;gt;
-          &amp;lt;*&amp;gt;   Universal TUN/TAP device driver support
+guest和host的内核选项
+123Device Drivers  ---&amp;gt;         [*] Network device support  ---&amp;gt;                   &amp;lt;*&amp;gt;   Universal TUN/TAP device driver support
 
-修改Ubuntu的/etc/qemu-ifup脚本
-12345">
+修改Ubuntu的/">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/vm-tap.png">
-<meta property="og:updated_time" content="2016-03-02T08:07:09.254Z">
+<meta property="og:updated_time" content="2016-03-02T08:08:23.901Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="在QEMU中使用GDB调试Linux Kernel代码（三）">
 <meta name="twitter:description" content="通过tun/tap实现qemu虚拟机和host之间的网络通信
 
-guest和host的内核选项 Device Drivers  —&amp;gt;
-[*] Network device support  ---&amp;gt;
-          &amp;lt;*&amp;gt;   Universal TUN/TAP device driver support
+guest和host的内核选项
+123Device Drivers  ---&amp;gt;         [*] Network device support  ---&amp;gt;                   &amp;lt;*&amp;gt;   Universal TUN/TAP device driver support
 
-修改Ubuntu的/etc/qemu-ifup脚本
-12345">
+修改Ubuntu的/">
 
 
 
@@ -281,10 +275,9 @@ guest和host的内核选项 Device Drivers  —&amp;gt;
       
         <p>通过tun/tap实现qemu虚拟机和host之间的网络通信</p>
 <ol>
-<li><p>guest和host的内核选项<br> Device Drivers  —&gt;</p>
-<pre><code>[*] Network device support  ---&gt;
-          &lt;*&gt;   Universal TUN/TAP device driver support
-</code></pre></li>
+<li><p>guest和host的内核选项</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Device Drivers  ---&gt;</span><br><span class="line">         [*] Network device support  ---&gt;</span><br><span class="line">                   &lt;*&gt;   Universal TUN/TAP device driver support</span><br></pre></td></tr></table></figure>
+</li>
 <li><p>修改Ubuntu的/etc/qemu-ifup脚本</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo mv /etc/qemu-ifup /etc/qemu-ifup.bak</span><br><span class="line">sudo vi /etc/qemu-ifup</span><br><span class="line"><span class="comment">#！/bin/sh</span></span><br><span class="line"><span class="comment"># TAP interface will be passed in $1</span></span><br><span class="line">/sbin/ifconfig <span class="variable">$1</span> <span class="number">192.168</span>.<span class="number">5.11</span></span><br></pre></td></tr></table></figure>
 </li>
