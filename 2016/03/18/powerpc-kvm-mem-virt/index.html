@@ -59,30 +59,24 @@
 
 <meta name="description" content="KVM (Kernel Virtual Machine) 是Linux Kernel的一个模块。另外还有一个用户空间的工具QEMU来控制KVM去创建、配置和管理Virtual Machine (VM)。
 
-内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：
-
-提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest O">
+内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：1.提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest O">
 <meta property="og:type" content="article">
 <meta property="og:title" content="PowerPC上的KVM内存虚拟化">
 <meta property="og:url" content="http://yoursite.com/2016/03/18/powerpc-kvm-mem-virt/index.html">
 <meta property="og:site_name" content="Goldhorn's Notes">
 <meta property="og:description" content="KVM (Kernel Virtual Machine) 是Linux Kernel的一个模块。另外还有一个用户空间的工具QEMU来控制KVM去创建、配置和管理Virtual Machine (VM)。
 
-内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：
-
-提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest O">
+内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：1.提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest O">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/kvm-qemu.jpg">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/MSR-Guest-Kernel.jpg">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/e6500-mmu-translation.jpg">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/LRAT.jpg">
-<meta property="og:updated_time" content="2016-03-19T09:07:04.174Z">
+<meta property="og:updated_time" content="2016-03-19T09:10:58.731Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="PowerPC上的KVM内存虚拟化">
 <meta name="twitter:description" content="KVM (Kernel Virtual Machine) 是Linux Kernel的一个模块。另外还有一个用户空间的工具QEMU来控制KVM去创建、配置和管理Virtual Machine (VM)。
 
-内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：
-
-提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest O">
+内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：1.提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest O">
 
 
 
@@ -275,12 +269,8 @@
       
         <p>KVM (Kernel Virtual Machine) 是Linux Kernel的一个模块。另外还有一个用户空间的工具QEMU来控制KVM去创建、配置和管理Virtual Machine (VM)。</p>
 <p><img src="http://7xpr8z.com1.z0.glb.clouddn.com/kvm-qemu.jpg" alt=""></p>
-<p>内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：</p>
-<ol>
-<li>提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest OS认为物理内存的物理地址空间为0 - 0x1000 0000. </li>
-<li>KVM来分配和管理实际的物理内存。内存的分配、回收、换出等都采用Linux原有的机制，不需要为KVM单独开发。Host OS为VM分配物理页面和普通进程一样，仍然遵循用时分配的原则。</li>
-</ol>
-<p><strong>Key Acronyms</strong><br>GVA      guest virtual address<br>GPA      guest physical address<br>HVA      host virtual address<br>HPA      host physical address<br>内存虚拟化的一个重要工作就是处理这几个地址之间的转换关系</p>
+<p>内存虚拟化是KVM实现的重要模块，通过它可以实现两个目的：<br>1.提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest OS认为物理内存的物理地址空间为0 - 0x1000 0000.<br>2.KVM来分配和管理实际的物理内存。内存的分配、回收、换出等都采用Linux原有的机制，不需要为KVM单独开发。Host OS为VM分配物理页面和普通进程一样，仍然遵循用时分配的原则。</p>
+<p><strong>Key Acronyms</strong><br>GVA  -    guest virtual address<br>GPA  -    guest physical address<br>HVA  -    host virtual address<br>HPA  -    host physical address<br>内存虚拟化的一个重要工作就是处理这几个地址之间的转换关系</p>
 <p><strong>两种实现</strong><br>目前KVM主要支持两种实现方法：<br>1.传统方案影子页表 (Shadow Page Table)<br>  Guest OS维护的页表负责GVA到GPA的转换，而KVM会维护另外一套影子页表负责GVA到HPA的转换。真正被加载到物理MMU中的页表是影子页表。<br>  在多进程Guest OS中，每个进程有一套页表，进程切换时也需要切换页表，这个时候就需要清空整个TLB，使所有影子页表的内容无效。但是某些影子页表的内容可能很快就会被再次用到，而重建影子页表是一项十分耗时的工作，因此又需要缓存影子页表。<br>缺点: 实现复杂，还需要考虑影子页表的同步；缓存影子页表的内存开销大。</p>
 <p>2.硬件辅助方案<br>先介绍Freescale PowerPC e6500提供的硬件支持</p>
 <ol>
