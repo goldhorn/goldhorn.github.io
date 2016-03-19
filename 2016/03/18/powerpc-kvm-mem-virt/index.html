@@ -75,7 +75,7 @@
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/MSR-Guest-Kernel.jpg">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/e6500-mmu-translation.jpg">
 <meta property="og:image" content="http://7xpr8z.com1.z0.glb.clouddn.com/LRAT.jpg">
-<meta property="og:updated_time" content="2016-03-19T08:44:34.997Z">
+<meta property="og:updated_time" content="2016-03-19T09:07:04.174Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="PowerPC上的KVM内存虚拟化">
 <meta name="twitter:description" content="KVM (Kernel Virtual Machine) 是Linux Kernel的一个模块。另外还有一个用户空间的工具QEMU来控制KVM去创建、配置和管理Virtual Machine (VM)。
@@ -280,7 +280,7 @@
 <li>提供VM的内存视图，即为Guest OS提供连续的地址空间。例如通过QEMU创建一个有256Mbytes的VM, 那么Guest OS认为物理内存的物理地址空间为0 - 0x1000 0000. </li>
 <li>KVM来分配和管理实际的物理内存。内存的分配、回收、换出等都采用Linux原有的机制，不需要为KVM单独开发。Host OS为VM分配物理页面和普通进程一样，仍然遵循用时分配的原则。</li>
 </ol>
-<p><strong>Key Acronyms</strong><br>    GVA   guest virtual address<br>    GPA   guest physical address<br>    HVA   host virtual address<br>    HPA   host physical address<br>  内存虚拟化的一个重要工作就是处理这几个地址之间的转换关系</p>
+<p><strong>Key Acronyms</strong><br>GVA      guest virtual address<br>GPA      guest physical address<br>HVA      host virtual address<br>HPA      host physical address<br>内存虚拟化的一个重要工作就是处理这几个地址之间的转换关系</p>
 <p><strong>两种实现</strong><br>目前KVM主要支持两种实现方法：<br>1.传统方案影子页表 (Shadow Page Table)<br>  Guest OS维护的页表负责GVA到GPA的转换，而KVM会维护另外一套影子页表负责GVA到HPA的转换。真正被加载到物理MMU中的页表是影子页表。<br>  在多进程Guest OS中，每个进程有一套页表，进程切换时也需要切换页表，这个时候就需要清空整个TLB，使所有影子页表的内容无效。但是某些影子页表的内容可能很快就会被再次用到，而重建影子页表是一项十分耗时的工作，因此又需要缓存影子页表。<br>缺点: 实现复杂，还需要考虑影子页表的同步；缓存影子页表的内存开销大。</p>
 <p>2.硬件辅助方案<br>先介绍Freescale PowerPC e6500提供的硬件支持</p>
 <ol>
@@ -293,50 +293,11 @@
 <p>问题来了，既然MMU能直接将GVA翻译为HPA，那么TLB中一定存储的是GVA–&gt;HPA的对应关系，但是VM上的Guest OS只能看到GPA，因此tlb miss异常处理程序在重填TLB写入的只能是GVA–&gt;GPA。如何将GVA和HPA对应起来就需要Hypervisor也就是VKM和QEMU的介入了。</p>
 <p>Hypervisor介入的关键流程为<br>1.VM上的tlb miss异常处理程序在执行tlbwe时陷入到Hypervisor中（很像异常的跳转啊）<br>2.KVM根据GPA查找到HVA，然后kernel为HVA分配物理页面<br>3.更新QEMU进程的页表HVA–&gt;HPA<br>4.将GVA–&gt;HPA写入TLB<br>5.返回到VM中继续执行，VM的tlb miss异常处理完成</p>
 <p>  这个实现的问题在于每次VM写tlb时都需要陷入到Hypervisor中处理，所以e6500提供了一个硬件表LRAT来缓存GPA–&gt;HPA，当VM上执行tlbwe时处理器先在LRAT中查找GPA，如果能找到就自动将GPA替换为HPA后写入TLB，如果LRAT miss就再陷入到Hypervisor。<br><img src="http://7xpr8z.com1.z0.glb.clouddn.com/LRAT.jpg" alt=""></p>
-<p><strong>代码</strong><br>在创建VM的初始化阶段，QEMU需要做的有两方面工作：<br>1.QEMU根据VM的物理内存大小（-m参数）申请一段QEMU的虚拟地址空间(HVA)<br><code>ppc500_init()
-   memory_region_init_ram(ram, &quot;mpc8544ds.ram&quot;, ram_size);
-     qemu_ram_alloc(size, mr);
-       posix_memalign(&amp;ptr, alignment, size);    /* 类似malloc */</code></p>
-<p>2.QEMU向KVM注册用户态内存空间。<br><code>memory_region_add_subregion(address_space_mem, ram-&gt;ram_addr, ram);
-  kvm_set_phys_mem()
-    kvm_set_user_memory_region()
-      kvm_vm_ioctl( KVM_SET_USER_MEMORY_REGION )</code></p>
-<p>由KVM来记录这段虚拟地址空间，即维护了GPA到HVA的对应关系<br><code>case KVM_SET_USER_MEMORY_REGION:
-   kvm_vm_ioctl_set_memory_region()
-     __kvm_set_memory_region()</code></p>
-<p>例如创建一个256Mbytes内存的VM，那么QEMU进程会先申请一块256Mbytes的虚拟内存（eg. HVA：0x4930 0000 - 0x5930 0000），它对应这个VM的物理内存（GPA：0 - 0x1000 0000）；然后QEMU将这一组（GPA, HVA, size）通过ioctl注册到KVM中，KVM会维护一个kvm_memory_slot数组来记录GPA到HVA的对应关系。<br><code>struct kvm_memory_slot {
-    gfn_t base_gfn;
-    unsigned long npages;
-    unsigned long flags;
-    unsigned long *dirty_bitmap;
-    struct kvm_arch_memory_slot arch;
-    unsigned long userspace_addr;
-    int user_alloc;
-    int id;
-};
-struct kvm_memslots {
-    int nmemslots; 
-    struct kvm_memory_slot memslots [KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS];
-};</code></p>
-<p>当LRAT miss发生时：<br>1.Hypervisor的异常处理程序根据GPA在kvm_memslots数组中查找到HVA；<br>2.然后调用内核的接口get_user_pages申请物理页面获得HPA，这个接口同时会更新进程的页表（这也遵循了Linux一贯的原则，和应用程序申请内存一样，都是先分配虚拟地址空间，到真正使用的时候在异常处理程序中分配真正的物理页面）；<br>3.将entry (LPID, GPA, HPA, size, …)写入LRAT<br><code>.text
-     .balign     0x1000
-     .globl interrupt_base_book3e
-interrupt_base_book3e:                         /* fake trap */
-     EXCEPTION_STUB(0x000, machine_check)          /* 0x0200 */
-     EXCEPTION_STUB(0x020, critical_input)          /* 0x0580 */
-     ……
-     EXCEPTION_STUB(0x300, hypercall)
-     EXCEPTION_STUB(0x320, ehpriv)
-     EXCEPTION_STUB(0x340, lrat_error)</code></p>
-<p><code>exc_lrat_error_book3e
-  kvmppc_handler_44_0x01B
-    kvmppc_resume_host
-      kvmppc_handle_exit
-      case BOOKE_INTERRUPT_LRAT_ERROR:
-        kvmppc_lrat_map
-          gfn_to_pfn_memslot
-            get_user_pages    /* 真正分配物理页面的地方 */
-            write_host_lrate</code></p>
+<p><strong>代码</strong><br>在创建VM的初始化阶段，QEMU需要做的有两方面工作：<br>1.QEMU根据VM的物理内存大小（-m参数）申请一段QEMU的虚拟地址空间(HVA)<br><figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">bash ppc500_init<span class="list">()</span></span><br><span class="line">   memory_region_init_ram<span class="list">(<span class="keyword">ram</span>, <span class="string">"mpc8544ds.ram"</span>, ram_size)</span><span class="comment">;</span></span><br><span class="line">     qemu_ram_alloc<span class="list">(<span class="keyword">size</span>, mr)</span><span class="comment">;</span></span><br><span class="line">       posix_memalign<span class="list">(<span class="keyword">&amp;ptr</span>, alignment, size)</span><span class="comment">;	/* 类似malloc */</span></span><br></pre></td></tr></table></figure></p>
+<p>2.QEMU向KVM注册用户态内存空间<br><figure class="highlight lisp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">bash memory_region_add_subregion<span class="list">(<span class="keyword">address_space_mem</span>, ram-&gt;ram_addr, ram)</span><span class="comment">;</span></span><br><span class="line">  kvm_set_phys_mem<span class="list">()</span></span><br><span class="line">    kvm_set_user_memory_region<span class="list">()</span></span><br><span class="line">      kvm_vm_ioctl<span class="list">( <span class="keyword">KVM_SET_USER_MEMORY_REGION</span> )</span></span><br></pre></td></tr></table></figure></p>
+<p>由KVM来记录这段虚拟地址空间，即维护了GPA到HVA的对应关系<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">case</span> KVM_SET_USER_MEMORY_REGION:</span><br><span class="line">   kvm_vm_ioctl_<span class="built_in">set</span>_memory_region()</span><br><span class="line">     __kvm_<span class="built_in">set</span>_memory_region()</span><br></pre></td></tr></table></figure></p>
+<p>例如创建一个256Mbytes内存的VM，那么QEMU进程会先申请一块256Mbytes的虚拟内存（eg. HVA：0x4930 0000 - 0x5930 0000），它对应这个VM的物理内存（GPA：0 - 0x1000 0000）；然后QEMU将这一组（GPA, HVA, size）通过ioctl注册到KVM中，KVM会维护一个kvm_memory_slot数组来记录GPA到HVA的对应关系。<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">struct kvm_memory_slot &#123;</span><br><span class="line">	gfn_t base_gfn;</span><br><span class="line">	unsigned long npages;</span><br><span class="line">	unsigned long flags;</span><br><span class="line">	unsigned long *dirty_bitmap;</span><br><span class="line">	struct kvm_arch_memory_slot arch;</span><br><span class="line">	unsigned long userspace_addr;</span><br><span class="line">	int user_alloc;</span><br><span class="line">	int id;</span><br><span class="line">&#125;;</span><br><span class="line">struct kvm_memslots &#123;</span><br><span class="line">	int nmemslots; </span><br><span class="line">	struct kvm_memory_slot memslots [KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS];</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure></p>
+<p>当LRAT miss发生时：<br>1.Hypervisor的异常处理程序根据GPA在kvm_memslots数组中查找到HVA；<br>2.然后调用内核的接口get_user_pages申请物理页面获得HPA，这个接口同时会更新进程的页表（这也遵循了Linux一贯的原则，和应用程序申请内存一样，都是先分配虚拟地址空间，到真正使用的时候在异常处理程序中分配真正的物理页面）；<br>3.将entry (LPID, GPA, HPA, size, …)写入LRAT<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">     .text</span><br><span class="line">     .balign     <span class="number">0</span>x1000</span><br><span class="line">     .globl interrupt_base_book3e</span><br><span class="line">interrupt_base_book3e:                         /* fake <span class="built_in">trap</span> */</span><br><span class="line">     EXCEPTION_STUB(<span class="number">0</span>x000, machine_check)          /* <span class="number">0</span>x0200 */</span><br><span class="line">     EXCEPTION_STUB(<span class="number">0</span>x020, critical_input)          /* <span class="number">0</span>x0580 */</span><br><span class="line">     ……</span><br><span class="line">     EXCEPTION_STUB(<span class="number">0</span>x300, hypercall)</span><br><span class="line">     EXCEPTION_STUB(<span class="number">0</span>x320, ehpriv)</span><br><span class="line">     EXCEPTION_STUB(<span class="number">0</span>x340, lrat_error)`</span><br><span class="line"></span><br><span class="line">exc_lrat_error_book3e</span><br><span class="line">  kvmppc_handler_44_0x01B</span><br><span class="line">    kvmppc_resume_host</span><br><span class="line">      kvmppc_handle_<span class="built_in">exit</span></span><br><span class="line">      <span class="keyword">case</span> BOOKE_INTERRUPT_LRAT_ERROR:</span><br><span class="line">        kvmppc_lrat_map</span><br><span class="line">          gfn_to_pfn_memslot</span><br><span class="line">            get_user_pages	/* 真正分配物理页面的地方 */</span><br><span class="line">            write_host_lrate</span><br></pre></td></tr></table></figure></p>
 <p><strong>Conclusion</strong><br>1.GVA到GPA的映射关系由Guest OS通过页表来维护；<br>2.GPA到HVA的映射关系由KVM通过Memory Slot数组来维护；<br>3.HVA到HPA的映射关系由Hypervisor OS的页表来维护 ；<br>4.GPA到HPA的映射关系由Hypervisor根据2和3计算出并写入LRAT；</p>
 <p>X86架构的内存虚拟化是通过Extended Page Table(EPT)来实现的，其原理和基本流程都一样，只不过X86始终围绕着页表，而PowerPC和MIPS则围绕着TLB。<br>X86上内存虚拟化以及EPT请参考<a href="http://royluo.org/2016/03/13/kvm-mmu-virtualization/" target="_blank" rel="external">http://royluo.org/2016/03/13/kvm-mmu-virtualization/</a></p>
 
